@@ -1,2 +1,0 @@
-greeting = Hello, { $name }!
-welcome = Welcome to our program

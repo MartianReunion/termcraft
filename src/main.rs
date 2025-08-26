@@ -1,33 +1,22 @@
 mod i18n;
+
+use clap::{Arg, Command, arg, command, value_parser};
 use i18n::tr;
 use std::collections::HashMap;
 use unic_langid::langid;
 
 fn main() {
-    // 初始化翻译器（可选，会自动初始化）
-    i18n::init().expect("Failed to initialize i18n");
+    i18n::init().expect("Unable to init i18n");
 
-    // 简单翻译
-    println!("{}", tr("welcome", None));
-
-    // 带参数的翻译
-    let mut args = HashMap::new();
-    args.insert("name", "Alice");
-    println!("{}", tr("greeting", Some(args)));
-
-    // 如果翻译键不存在，会返回键本身
-    println!("{}", tr("key itself", None));
-
-    let lang = langid!("zh-CN");
-    i18n::set_language(lang);
-
-    println!("{}", tr("welcome", None));
-
-    // 带参数的翻译
-    let mut args = HashMap::new();
-    args.insert("name", "Alice");
-    println!("{}", tr("greeting", Some(args)));
-
-    // 如果翻译键不存在，会返回键本身
-    println!("{}", tr("key itself", None));
+    let matches = Command::new(env!("CARGO_PKG_NAME"))
+        // 全局配置
+        .version(env!("CARGO_PKG_VERSION"))
+        .author(env!("CARGO_PKG_AUTHORS"))
+        .about(tr("cli-about", None))
+        // 子命令配置
+        .subcommands([
+            Command::new("test")
+                .about(tr("cli-test",None)),
+        ])
+        .get_matches();
 }

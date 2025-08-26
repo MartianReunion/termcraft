@@ -3,10 +3,9 @@ name = "termcraft"
 version = "0.1.0"
 edition = "2024"
 authors = ["MartianReunion"]
-description = ""
 
 [dependencies]
-clap = "4.5.42"
+clap = "4.5"
 fluent-bundle = "0.16.0"
 unic-langid = { version = "0.9.6", features = ["macros"] }
 anyhow = "1.0.98"
@@ -14,5 +13,4 @@ once_cell = "1.21.3"
 include_dir = "0.7.4"
 parking_lot = "0.12.4"
 fluent-syntax = "0.12.0"
-fluent-locale = "0.10.1"
 

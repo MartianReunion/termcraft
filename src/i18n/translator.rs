@@ -192,7 +192,7 @@ impl Translator {
     }
 
     /// 设置当前使用的语言
-    pub fn set_language(&mut self, lang: LanguageIdentifier) -> Result<()> {
+    pub fn set_language(&self, lang: LanguageIdentifier) -> Result<()> {
         if self.available_langs.contains(&lang) {
             *self.current_lang.write() = lang;
             Ok(())

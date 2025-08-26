@@ -3,6 +3,7 @@
 //! 支持自动检测系统语言，默认使用英文
 //!
 //! 听着，整个模块都是LLM写的，所以有什么问题和我的AI说去吧（
+//! 人生啊，能不能放过这一次～～
 
 pub mod loader;
 pub mod translator;
@@ -10,7 +11,7 @@ pub mod translator;
 use anyhow::Result;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
-
+use unic_langid::LanguageIdentifier;
 use crate::i18n::translator::Translator;
 
 /// 全局翻译器实例
@@ -36,4 +37,14 @@ pub fn init() -> Result<()> {
     // 确保翻译器已初始化
     Lazy::force(&TRANSLATOR);
     Ok(())
+}
+/// 设置当前使用的语言
+///
+/// # 参数
+/// * `lang` - 语言标识符
+///
+/// # 返回值
+/// 如果语言可用且设置成功，返回 Ok(())，否则返回错误
+pub fn set_language(lang: LanguageIdentifier) -> Result<()> {
+    TRANSLATOR.set_language(lang)
 }

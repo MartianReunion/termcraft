@@ -1,1 +1,1 @@
-cli-about = Termcraft is a Minecraft launcher that runs on the command line.
+error-command = Subcommand is required

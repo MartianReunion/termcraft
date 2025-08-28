@@ -1,1 +1,1 @@
-cli-about = Termcraft是一个运行于命令行的Minecraft启动器
+error-command = 需要提供子命令

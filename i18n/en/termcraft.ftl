@@ -1,0 +1,1 @@
+about = Termcraft is a Minecraft launcher that runs on the command line.

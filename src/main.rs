@@ -1,10 +1,9 @@
+mod functions;
 mod i18n;
 
-use clap::{Arg, Command, arg, command, value_parser};
+use clap::Command;
+use colored::Colorize;
 use i18n::tr;
-use std::collections::HashMap;
-use unic_langid::langid;
-
 fn main() {
     i18n::init().expect("Unable to init i18n");
 
@@ -12,11 +11,17 @@ fn main() {
         // 全局配置
         .version(env!("CARGO_PKG_VERSION"))
         .author(env!("CARGO_PKG_AUTHORS"))
-        .about(tr("cli-about", None))
+        .about(tr!("termcraft:about"))
         // 子命令配置
-        .subcommands([
-            Command::new("test")
-                .about(tr("cli-test",None)),
-        ])
+        .subcommands([Command::new("about").about(tr!("about:about"))])
         .get_matches();
+
+    match matches.subcommand() {
+        Some(("about", about_cmd)) => functions::about(),
+        _ => show_unknown_cmd_msg(),
+    }
+}
+
+fn show_unknown_cmd_msg() {
+    println!("{}", tr!("cli:error-command").red());
 }

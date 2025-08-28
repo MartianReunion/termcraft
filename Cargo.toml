@@ -3,6 +3,7 @@ name = "termcraft"
 version = "0.1.0"
 edition = "2024"
 authors = ["MartianReunion"]
+license = "GPL-3.0-or-later"
 
 [dependencies]
 clap = "4.5"
@@ -14,4 +15,6 @@ include_dir = "0.7.4"
 parking_lot = "0.12.4"
 fluent-syntax = "0.12.0"
 colored = "3.0.0"
+dirs-next = "2.0.0"
+figment = { version = "0.10.19", features = ["toml"] }
 

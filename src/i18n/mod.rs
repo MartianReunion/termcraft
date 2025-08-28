@@ -40,3 +40,23 @@ pub fn init() -> Result<()> {
     Lazy::force(&TRANSLATOR);
     Ok(())
 }
+
+/// 类似 println! 的翻译宏
+/// 用法: tr!("key") 或 tr!("file:key", arg1 = value1, arg2 = value2, ...)
+#[macro_export]
+macro_rules! tr {
+    // 无参数的情况
+    ($key:expr) => {
+        $crate::i18n::tr($key, None)
+    };
+
+    // 带参数的情况: tr!("key", name = "John", count = 5)
+    ($key:expr, $($name:ident = $value:expr),*) => {{
+        use std::collections::HashMap;
+        let mut args = HashMap::new();
+        $(
+            args.insert(stringify!($name), $value);
+        )*
+        $crate::i18n::tr($key, Some(args))
+    }};
+}

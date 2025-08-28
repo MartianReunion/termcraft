@@ -4,6 +4,7 @@ mod i18n;
 use clap::Command;
 use colored::Colorize;
 use i18n::tr;
+#[rustfmt::skip]
 fn main() {
     i18n::init().expect("Unable to init i18n");
 
@@ -13,7 +14,10 @@ fn main() {
         .author(env!("CARGO_PKG_AUTHORS"))
         .about(tr!("termcraft:about"))
         // 子命令配置
-        .subcommands([Command::new("about").about(tr!("about:about"))])
+        .subcommands([
+            Command::new("about")
+                .about(tr!("about:about"))
+        ])
         .get_matches();
 
     match matches.subcommand() {

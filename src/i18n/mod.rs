@@ -42,7 +42,7 @@ pub fn init() -> Result<()> {
 }
 
 /// 类似 println! 的翻译宏
-/// 用法: tr!("key") 或 tr!("file:key", arg1 = value1, arg2 = value2, ...)
+/// 用法: tr!("key") 或 tr!("file:key", name: "John", count: 5)
 #[macro_export]
 macro_rules! tr {
     // 无参数的情况
@@ -50,12 +50,46 @@ macro_rules! tr {
         $crate::i18n::tr($key, None)
     };
 
-    // 带参数的情况: tr!("key", name = "John", count = 5)
-    ($key:expr, $($name:ident = $value:expr),*) => {{
+    // 带参数的情况: tr!("key", name: "John", count: 5)
+    ($key:expr, $($name:ident: $value:expr),*) => {{
         use std::collections::HashMap;
         let mut args = HashMap::new();
         $(
             args.insert(stringify!($name), $value);
+        )*
+        $crate::i18n::tr($key, Some(args))
+    }};
+}
+/// 类似 println! 的翻译打印宏
+/// 用法: tr_println!("key") 或 tr_println!("file:key", name: "John", count: 5)
+#[macro_export]
+macro_rules! tr_println {
+    // 无参数的情况
+    ($key:expr) => {
+        println!("{}", $crate::i18n::tr($key, None))
+    };
+
+    // 带参数的情况
+    ($key:expr, $($name:ident: $value:expr),*) => {{
+        use std::collections::HashMap;
+        let mut args = HashMap::new();
+        $(
+            args.insert(stringify!($name), $value);
+        )*
+        println!("{}", $crate::i18n::tr($key, Some(args)))
+    }};
+}
+#[macro_export]
+macro_rules! tr_args {
+    ($key:expr) => {
+        $crate::i18n::tr($key, None)
+    };
+
+    ($key:expr, $(($name:expr, $value:expr)),*) => {{
+        use std::collections::HashMap;
+        let mut args = HashMap::new();
+        $(
+            args.insert($name, $value);
         )*
         $crate::i18n::tr($key, Some(args))
     }};

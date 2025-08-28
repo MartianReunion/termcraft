@@ -33,12 +33,14 @@ pub fn load_translations(lang_code: &str) -> Result<HashMap<String, String>> {
         let path = file.path();
         let filename = path
             .to_str()
-            .ok_or_else(|| anyhow!("Invalid file path: {:?}", path))?;
+            .ok_or_else(|| anyhow!("Invalid file path: {:?}", path))?
+            .trim_start_matches(&format!("{}/", lang_code)) // 移除语言目录前缀
+            .to_string();
         let content = file
             .contents_utf8()
-            .ok_or_else(|| anyhow!("File '{}' is not valid UTF-8", filename))?;
+            .ok_or_else(|| anyhow!("File '{}' is not valid UTF-8", &filename))?;
 
-        translations.insert(filename.to_string(), content.to_string());
+        translations.insert(filename, content.to_string());
     }
 
     Ok(translations)

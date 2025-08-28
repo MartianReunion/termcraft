@@ -9,12 +9,13 @@ use parking_lot::RwLock;
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use unic_langid::{LanguageIdentifier,langid};
+use unic_langid::{LanguageIdentifier, langid};
 
 /// 翻译器结构体，管理翻译资源和语言设置
 #[derive(Clone)]
 pub struct Translator {
-    bundles: Arc<RwLock<HashMap<LanguageIdentifier, FluentBundle<FluentResource>>>>,
+    bundles: Arc<RwLock<HashMap<LanguageIdentifier, FluentBundle<Arc<FluentResource>>>>>,
+    file_resources: Arc<RwLock<HashMap<LanguageIdentifier, HashMap<String, Arc<FluentResource>>>>>,
     current_lang: Arc<RwLock<LanguageIdentifier>>,
     default_lang: LanguageIdentifier,
     available_langs: HashSet<LanguageIdentifier>,
@@ -43,19 +44,27 @@ impl Translator {
 
         // 加载所有可用语言的翻译资源
         let mut bundles = HashMap::new();
+        let mut file_resources = HashMap::new();
+
         for lang in &available_langs {
             let lang_code = lang.to_string();
             let translations = loader::load_translations(&lang_code)?;
 
             let mut bundle = FluentBundle::new(vec![lang.clone()]);
+            let mut lang_file_resources = HashMap::new();
 
             // 添加所有翻译资源
             for (filename, content) in translations {
                 match FluentResource::try_new(content) {
                     Ok(resource) => {
-                        bundle
-                            .add_resource(resource)
-                            .map_err(|e| anyhow!("Failed to add resource {}: {:?}", filename, e))?;
+                        // 将资源包装在 Arc 中以便克隆
+                        let resource_arc = Arc::new(resource);
+
+                        // 将资源添加到文件映射
+                        lang_file_resources.insert(filename.clone(), resource_arc.clone());
+
+                        // 添加到 bundle - add_resource_overriding 不会返回错误
+                        bundle.add_resource_overriding(resource_arc);
                     }
                     Err((_, errors)) => {
                         let error_messages: Vec<String> = errors
@@ -72,10 +81,12 @@ impl Translator {
             }
 
             bundles.insert(lang.clone(), bundle);
+            file_resources.insert(lang.clone(), lang_file_resources);
         }
 
         Ok(Self {
             bundles: Arc::new(RwLock::new(bundles)),
+            file_resources: Arc::new(RwLock::new(file_resources)),
             current_lang: Arc::new(RwLock::new(current_lang)),
             default_lang,
             available_langs,
@@ -123,10 +134,10 @@ impl Translator {
         default_lang.clone()
     }
 
-    /// 翻译函数
+    /// 翻译函数，支持 file:key 格式
     ///
     /// # 参数
-    /// * `key` - 翻译键
+    /// * `key` - 翻译键，支持 "file:key" 格式
     /// * `args` - 翻译所需的参数，可选
     ///
     /// # 返回值
@@ -134,16 +145,22 @@ impl Translator {
     pub fn translate(&self, key: &str, args: Option<HashMap<&str, &str>>) -> String {
         let current_lang = self.current_lang.read().clone();
 
+        // 解析 file:key 格式
+        let (file_prefix, actual_key) = if let Some(colon_pos) = key.find(':') {
+            let (file, actual_key) = key.split_at(colon_pos);
+            (Some(file), &actual_key[1..]) // 去掉冒号
+        } else {
+            (None, key)
+        };
+
         // 尝试使用当前语言翻译
-        if let Some(translated) = self.translate_with_lang(key, args.as_ref(), &current_lang) {
+        if let Some(translated) = self.translate_with_lang(file_prefix, actual_key, args.as_ref(), &current_lang) {
             return translated;
         }
 
         // 当前语言没有找到，尝试使用默认语言
         if current_lang != self.default_lang {
-            if let Some(translated) =
-                self.translate_with_lang(key, args.as_ref(), &self.default_lang)
-            {
+            if let Some(translated) = self.translate_with_lang(file_prefix, actual_key, args.as_ref(), &self.default_lang) {
                 return translated;
             }
         }
@@ -152,19 +169,51 @@ impl Translator {
         key.to_string()
     }
 
-    /// 使用指定语言进行翻译
+    /// 使用指定语言进行翻译，支持文件前缀
     fn translate_with_lang(
         &self,
+        file_prefix: Option<&str>,
         key: &str,
         args: Option<&HashMap<&str, &str>>,
         lang: &LanguageIdentifier,
     ) -> Option<String> {
         let bundles = self.bundles.read();
-        let bundle = bundles.get(lang)?;
+        let file_resources = self.file_resources.read();
 
-        // 查找消息
-        let message = bundle.get_message(key)?;
+        // 如果有文件前缀，先尝试在特定文件中查找
+        if let Some(file_prefix) = file_prefix {
+            if let Some(lang_resources) = file_resources.get(lang) {
+                // 查找匹配的文件资源
+                for (filename, _) in lang_resources {
+                    if filename.starts_with(file_prefix) {
+                        // 使用 bundle 来获取消息
+                        if let Some(bundle) = bundles.get(lang) {
+                            if let Some(message) = bundle.get_message(key) {
+                                return self.format_message(&message, args, bundle);
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
+        // 如果没有文件前缀或特定文件没找到，尝试全局查找
+        if let Some(bundle) = bundles.get(lang) {
+            if let Some(message) = bundle.get_message(key) {
+                return self.format_message(&message, args, bundle);
+            }
+        }
+
+        None
+    }
+
+    /// 格式化消息
+    fn format_message(
+        &self,
+        message: &fluent_bundle::FluentMessage,
+        args: Option<&HashMap<&str, &str>>,
+        bundle: &FluentBundle<Arc<FluentResource>>,
+    ) -> Option<String> {
         // 准备参数
         let mut args_map = FluentArgs::new();
         if let Some(args) = args {
@@ -192,7 +241,7 @@ impl Translator {
     }
 
     /// 设置当前使用的语言
-    pub fn set_language(&self, lang: LanguageIdentifier) -> Result<()> {
+    pub fn set_language(&mut self, lang: LanguageIdentifier) -> Result<()> {
         if self.available_langs.contains(&lang) {
             *self.current_lang.write() = lang;
             Ok(())

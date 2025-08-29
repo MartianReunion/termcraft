@@ -4,7 +4,7 @@ use crate::tr;
 pub fn about()
 {
     println!("{}", tr!("termcraft:about").bright_yellow());
-    println!("{}",tr!("about:version-text",version: env!("CARGO_PKG_VERSION")));
+    println!("{}", tr!("about:version-text",version: env!("CARGO_PKG_VERSION")));
     println!();
     println!("{}", tr!("about:message"));
     println!();

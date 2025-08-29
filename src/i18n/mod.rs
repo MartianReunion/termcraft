@@ -10,16 +10,15 @@
 pub mod loader;
 pub mod translator;
 
+use crate::i18n::translator::Translator;
 use anyhow::Result;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
-
-use crate::i18n::translator::Translator;
+use unic_langid::LanguageIdentifier;
 
 /// 全局翻译器实例
-static TRANSLATOR: Lazy<Translator> = Lazy::new(|| {
-    Translator::new().expect("Failed to initialize translator")
-});
+static TRANSLATOR: Lazy<Translator> =
+    Lazy::new(|| Translator::new().expect("Failed to initialize translator"));
 
 /// 翻译函数，提供简单的接口
 ///
@@ -29,8 +28,8 @@ static TRANSLATOR: Lazy<Translator> = Lazy::new(|| {
 ///
 /// # 返回值
 /// 翻译后的字符串，如果没有找到对应翻译，则返回键
-pub fn tr(key: &str, args: Option<HashMap<&str, &str>>) -> String {
-    TRANSLATOR.translate(key, args)
+pub fn tr<S: AsRef<str>>(key: S, args: Option<HashMap<&str, &str>>) -> String {
+    TRANSLATOR.translate(key.as_ref(), args)
 }
 
 /// 初始化翻译器（在程序启动时调用）
@@ -40,56 +39,29 @@ pub fn init() -> Result<()> {
     Lazy::force(&TRANSLATOR);
     Ok(())
 }
-
-/// 类似 println! 的翻译宏
-/// 用法: tr!("key") 或 tr!("file:key", name: "John", count: 5)
+/// 切换当前使用的语言
+///
+/// # 参数
+/// * `lang` - 要切换到的语言标识符
+///
+/// # 返回值
+/// 如果成功切换语言则返回 Ok(())，否则返回错误
+pub fn switch_language(lang: LanguageIdentifier) -> Result<()> {
+    TRANSLATOR.set_language(lang)
+}
 #[macro_export]
 macro_rules! tr {
-    // 无参数的情况
     ($key:expr) => {
         $crate::i18n::tr($key, None)
     };
 
-    // 带参数的情况: tr!("key", name: "John", count: 5)
     ($key:expr, $($name:ident: $value:expr),*) => {{
         use std::collections::HashMap;
         let mut args = HashMap::new();
         $(
-            args.insert(stringify!($name), $value);
-        )*
-        $crate::i18n::tr($key, Some(args))
-    }};
-}
-/// 类似 println! 的翻译打印宏
-/// 用法: tr_println!("key") 或 tr_println!("file:key", name: "John", count: 5)
-#[macro_export]
-macro_rules! tr_println {
-    // 无参数的情况
-    ($key:expr) => {
-        println!("{}", $crate::i18n::tr($key, None))
-    };
-
-    // 带参数的情况
-    ($key:expr, $($name:ident: $value:expr),*) => {{
-        use std::collections::HashMap;
-        let mut args = HashMap::new();
-        $(
-            args.insert(stringify!($name), $value);
-        )*
-        println!("{}", $crate::i18n::tr($key, Some(args)))
-    }};
-}
-#[macro_export]
-macro_rules! tr_args {
-    ($key:expr) => {
-        $crate::i18n::tr($key, None)
-    };
-
-    ($key:expr, $(($name:expr, $value:expr)),*) => {{
-        use std::collections::HashMap;
-        let mut args = HashMap::new();
-        $(
-            args.insert($name, $value);
+            // 将值转换为字符串并存储，避免借用临时值
+            let value_str = $value.to_string();
+            args.insert(stringify!($name), value_str.as_str());
         )*
         $crate::i18n::tr($key, Some(args))
     }};
